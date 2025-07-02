@@ -1,0 +1,28 @@
+{
+  "name": "ts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.2.0",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.2.0",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.2",
+    "bs58": "^6.0.0"
+  },
+  "scripts": {
+    "spl_init": "ts-node ./cluster1/spl-init.ts",
+    "spl_mint": "ts-node ./cluster1/spl-mint.ts",
+    "spl_transfer": "ts-node ./cluster1/spl-transfer.ts",
+    "spl_metadata": "ts-node ./cluster1/spl-metadata.ts",
+    "generate": "ts-node ./cluster1/generate.ts",
+    "airdrop": "ts-node ./cluster1/airdrop.ts"
+  }
+}
