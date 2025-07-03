@@ -13,6 +13,7 @@
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.2.0",
     "@metaplex-foundation/umi-bundle-defaults": "^1.2.0",
+    "@metaplex-foundation/umi-uploader-irys": "^1.2.0",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.2",
     "bs58": "^6.0.0"
@@ -23,6 +24,9 @@
     "spl_transfer": "ts-node ./cluster1/spl-transfer.ts",
     "spl_metadata": "ts-node ./cluster1/spl-metadata.ts",
     "generate": "ts-node ./cluster1/generate.ts",
-    "airdrop": "ts-node ./cluster1/airdrop.ts"
+    "airdrop": "ts-node ./cluster1/airdrop.ts",
+      "nftimage": "ts-node ./cluster1/nftimage.ts",
+          "nftmetadata": "ts-node ./cluster1/nft-metadata.ts",
+              "nftmint": "ts-node ./cluster1/nft-mint.ts"
   }
 }
