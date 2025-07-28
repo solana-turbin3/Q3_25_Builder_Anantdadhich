@@ -6,7 +6,7 @@ pub mod instructions;
 pub use instructions::*; 
 pub mod state;
 
-pub mod error;
+pub mod errors;
 declare_id!("H9sR4GCub6wU637U8bw74Znab2zBxcJiiKjuFWt5hzSv");
 
 #[program]
@@ -22,5 +22,20 @@ pub mod nft_staking {
     pub fn init_useraccount(ctx:Context<InitUser>)->Result<()> {
         ctx.accounts.init_user(&ctx.bumps)
     }
+
+    pub fn init_stake(ctx:Context<InitStake>)->Result<()>{
+      ctx.accounts.stake(&ctx.bumps)
+    }
+
+    pub fn init_unstake(ctx:Context<InitUnstake>)->Result<()>{
+        ctx.accounts.unstake()
+    }
+
+    pub fn init_claim(ctx:Context<InitClaim>)->Result<()> {
+
+        ctx.accounts.claim()
+    }
+
+    
 }
 
