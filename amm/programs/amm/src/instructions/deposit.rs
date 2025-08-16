@@ -10,7 +10,7 @@ use constant_product_curve::ConstantProduct;
 
 pub struct Deposit<'info> {
     #[account(mut)]
-  pub signer:Signer<'info> , 
+  pub user:Signer<'info> , 
    
   pub mint_x:Account<'info,Mint> ,
 
@@ -27,7 +27,7 @@ pub struct Deposit<'info> {
     has_one =mint_x ,
     has_one=mint_y, 
     seeds=[b"config",config.seed.to_le_bytes().as_ref()],
-    bump=config.bump
+    bump=config.config_bump
 
   )]
   pub config:Account<'info,Config>, 
@@ -36,34 +36,39 @@ pub struct Deposit<'info> {
 #[account(
     mut,
     associated_token::mint=mint_x,
-    associated_token::authority=config
+    associated_token::authority=config,
+    associated_token::token_program = token_program
 )]
   pub vault_x:Account<'info,TokenAccount> ,
  #[account(mut,
    associated_token::mint=mint_y,
-   associated_token::authority=config
+   associated_token::authority=config,
+   associated_token::token_program = token_program
   )]
   pub vault_y:Account<'info,TokenAccount>,
  #[account(
     mut,
     associated_token::mint=mint_x,
-    associated_token::authority=signer
+    associated_token::authority=user,
+    associated_token::token_program = token_program
  )]
-  pub user_x:Account<'info,TokenAccount>,
+  pub user_ata_x:Account<'info,TokenAccount>,
   #[account(
     mut,
     associated_token::mint=mint_y,
-    associated_token::authority=signer
+    associated_token::authority=user,
+    associated_token::token_program = token_program
   )]
 
-  pub user_y:Account<'info,TokenAccount>, 
+  pub user_ata_y:Account<'info,TokenAccount>, 
   #[account(
   init_if_needed, 
-  payer=signer,
+  payer=user,
   associated_token::mint=mint_lp,
-  associated_token::authority=signer
+  associated_token::authority=user,
+  associated_token::token_program = token_program
   )]
-  pub user_lp:Account<'info,TokenAccount>, 
+  pub user_ata_lp:Account<'info,TokenAccount>, 
 
   pub token_program:Program<'info,Token>,
 
@@ -111,8 +116,8 @@ impl <'info> Deposit <'info>{
 
      pub fn deposit_tokens(&self ,is_x:bool,amount:u64 )->Result<()>{
         let (from,to) = match is_x {
-          true => (self.user_x.to_account_info(),self.vault_x.to_account_info()),
-          false => (self.user_y.to_account_info() ,self.vault_y.to_account_info())
+          true => (self.user_ata_x.to_account_info(),self.vault_x.to_account_info()),
+          false => (self.user_ata_y.to_account_info() ,self.vault_y.to_account_info())
         }; 
 
 
@@ -122,7 +127,7 @@ impl <'info> Deposit <'info>{
            from,
            to
            ,
-           authority:self.signer.to_account_info()
+           authority:self.user.to_account_info()
         }; 
       
       let ctx=CpiContext::new(cpi_program,cpi_transfer); 
@@ -137,14 +142,14 @@ impl <'info> Deposit <'info>{
 
         let cpi_account=MintTo{
           mint:self.mint_lp.to_account_info(),
-           to:self.user_lp.to_account_info(), 
+           to:self.user_ata_lp.to_account_info(), 
            authority:self.config.to_account_info()
         }     ; 
 
         let seeds = &[
           &b"config"[..],
           &self.config.seed.to_le_bytes(),
-          &[self.config.bump],
+          &[self.config.config_bump],
       ];
 
       let signer_seeds = &[&seeds[..]];

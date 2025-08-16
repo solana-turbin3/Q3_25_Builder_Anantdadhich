@@ -10,13 +10,14 @@ use crate::{error::AmmError, state::Config};
 pub struct Withdraw<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+
     pub mint_x: Account<'info, Mint>,
     pub mint_y: Account<'info, Mint>,
     #[account(
         has_one = mint_x,
         has_one = mint_y,
         seeds = [b"config", config.seed.to_le_bytes().as_ref()],
-        bump = config.bump,
+        bump = config.config_bump,
     )]
     pub config: Account<'info, Config>,
     #[account(
@@ -29,12 +30,14 @@ pub struct Withdraw<'info> {
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config,
+        associated_token::token_program = token_program,
     )]
     pub vault_x: Account<'info, TokenAccount>,
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
+        associated_token::token_program = token_program,
     )]
     pub vault_y: Account<'info, TokenAccount>,
     #[account(
@@ -42,21 +45,24 @@ pub struct Withdraw<'info> {
         payer = user,
         associated_token::mint = mint_x,
         associated_token::authority = user,
+        associated_token::token_program = token_program,
     )]
-    pub user_x: Account<'info, TokenAccount>,
+    pub user_ata_x: Account<'info, TokenAccount>,
     #[account(
         init_if_needed,
         payer = user,
         associated_token::mint = mint_y,
         associated_token::authority = user,
+        associated_token::token_program = token_program,
     )]
-    pub user_y: Account<'info, TokenAccount>,
+    pub user_ata_y: Account<'info, TokenAccount>,
     #[account(
         mut,
         associated_token::mint = mint_lp,
         associated_token::authority = config,
+        associated_token::token_program = token_program,
     )]
-    pub user_lp: Account<'info, TokenAccount>,
+    pub user_ata_lp: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -93,8 +99,8 @@ impl<'info> Withdraw<'info> {
 
     pub fn withdraw_tokens(&self, is_x: bool, amount: u64) -> Result<()> {
         let (from, to) = match is_x {
-            true => (self.vault_x.to_account_info(), self.user_x.to_account_info()),
-            false => (self.vault_y.to_account_info(), self.user_y.to_account_info()),
+            true => (self.vault_x.to_account_info(), self.user_ata_x.to_account_info()),
+            false => (self.vault_y.to_account_info(), self.user_ata_y.to_account_info()),
         };
 
         let cpi_program = self.token_program.to_account_info();
@@ -108,7 +114,7 @@ impl<'info> Withdraw<'info> {
         let seeds = &[
             &b"config"[..],
             &self.config.seed.to_le_bytes(),
-            &[self.config.bump],
+            &[self.config.config_bump],
         ];
         let signer_seeds = &[&seeds[..]];
 
@@ -124,7 +130,7 @@ impl<'info> Withdraw<'info> {
 
         let cpi_accounts = Burn {
             mint: self.mint_lp.to_account_info(),
-            from: self.user_lp.to_account_info(),
+            from: self.user_ata_lp.to_account_info(),
             authority: self.user.to_account_info(),
         };
 

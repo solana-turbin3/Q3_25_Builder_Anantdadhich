@@ -12,6 +12,8 @@ This repository is a collection of decentralized application (dApp) projects, sm
 Check out my capstone project here:  
 [NeuralTrader](https://github.com/Anantdadhich/NeuralTrader)
 
+Programs for capstone (https://github.com/Anantdadhich/NeuralTrader/tree/main/anchor-programs)
+
 ## Contributing
 
 Contributions are welcome! Please open issues or pull requests for suggestions, bug fixes, or improvements.

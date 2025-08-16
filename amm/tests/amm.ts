@@ -1,235 +1,152 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Amm } from "../target/types/amm";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import * as spl from "@solana/spl-token"
+import {
+  createMint,
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
+  getAssociatedTokenAddress,
+} from "@solana/spl-token";
 
-describe("amm", () => {
-  // Configure the client to use the local cluster.
-  const provider=anchor.AnchorProvider.env()
-  anchor.setProvider(provider) 
-
-
+describe("amm initialize", () => {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
 
   const program = anchor.workspace.amm as Program<Amm>;
+  const connection = provider.connection;
+  const admin = provider.wallet;
 
-  const seed=new anchor.BN(1); 
+  let mintX: anchor.web3.PublicKey;
+  let mintY: anchor.web3.PublicKey;
+  let lpMint: anchor.web3.PublicKey;
 
-  const fee=30;
-  const user=Keypair.generate(); 
-   let usertokenx:PublicKey , usertokeny:PublicKey ; 
+  let configPda: anchor.web3.PublicKey;
+  let vaultX: anchor.web3.PublicKey;
+  let vaultY: anchor.web3.PublicKey;
 
-   let tokenmintx:PublicKey , tokenminty:PublicKey ; 
+  let userAtaX: anchor.web3.PublicKey;
+  let userAtaY: anchor.web3.PublicKey;
+  let userLpAta: anchor.web3.PublicKey;
 
-   let tokenvaultx:PublicKey ,tokenvaulty:PublicKey ; 
+  const seed = new anchor.BN(42);
+  const fee = 30;
 
-   let config:PublicKey; 
-   let tokenmintlp:PublicKey ;
-   let usermintlp:PublicKey ; 
+  it("Initializes the AMM pool", async () => {
+    mintX = await createMint(connection, admin.payer, admin.publicKey, null, 6);
+    mintY = await createMint(connection, admin.payer, admin.publicKey, null, 6);
 
-    before(async()=>{
-      const airdropsignature=await provider.connection.requestAirdrop(user.publicKey, 
+    [configPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("config"), seed.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
 
-        2*anchor.web3.LAMPORTS_PER_SOL 
-      );
-      await provider.connection.confirmTransaction(airdropsignature); 
+    [lpMint] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("lp"), configPda.toBuffer()],
+      program.programId
+    );
 
-      tokenmintx=await spl.createMint(
-        provider.connection,
-        user,
-        user.publicKey,
-        null,
-        6
-        
-      ); 
+    vaultX = await getAssociatedTokenAddress(mintX, configPda, true);
+    vaultY = await getAssociatedTokenAddress(mintY, configPda, true);
 
-      tokenminty=await spl.createMint(
-        provider.connection,
-        user,
-        user.publicKey,
-        null,
-        6
-      );
+    const tx = await program.methods
+      .init(fee,seed,null)
+      .accountsPartial({
+        admin: admin.publicKey,
+        mintX,
+        mintY,
+        config: configPda,
+        mintLp: lpMint,
+        vaultX,
+        vaultY,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+    console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
 
+    console.log("✅ AMM initialized successfully");
 
-      await spl.createAssociatedTokenAccount(
-        provider.connection, 
-        user,
-        tokenmintx,
-        user.publicKey
-      );
+    // Create user token accounts and mint initial balances
+    const ataX = await getOrCreateAssociatedTokenAccount(connection, admin.payer, mintX, admin.publicKey);
+    const ataY = await getOrCreateAssociatedTokenAccount(connection, admin.payer, mintY, admin.publicKey);
+    const ataLp = await getOrCreateAssociatedTokenAccount(connection, admin.payer, lpMint, admin.publicKey);
 
-      await spl.createAssociatedTokenAccount(
-        provider.connection,
-        user,
-        tokenminty, 
-         user.publicKey
-      );
+    await mintTo(connection, admin.payer, mintX, ataX.address, admin.payer, 1_000_000);
+    await mintTo(connection, admin.payer, mintY, ataY.address, admin.payer, 1_000_000);
 
-      usertokenx=spl.getAssociatedTokenAddressSync(tokenmintx,user.publicKey); 
-      usertokeny=spl.getAssociatedTokenAddressSync(tokenminty,user.publicKey);
-
-      await spl.mintTo(
-        provider.connection,
-        user,
-        tokenmintx,
-        usertokenx,
-        user,
-        200000000000
-
-      )
-      await spl.mintTo(
-        provider.connection, 
-        user,
-        tokenminty,
-        usertokeny,
-        user,
-        200000000000
-
-      )
-
-       config=PublicKey.findProgramAddressSync(
-        [Buffer.from("config"),seed.toArrayLike(Buffer,"le",8)],
-        program.programId
-       )[0];
-
-       tokenvaultx=spl.getAssociatedTokenAddressSync(tokenmintx,config,true);
-       tokenvaulty=spl.getAssociatedTokenAddressSync(tokenminty,config,true);
-
-       tokenmintlp=PublicKey.findProgramAddressSync(
-        [Buffer.from("lp"),config.toBuffer()],
-        program.programId
-       )[0]; 
-
-       usermintlp=spl.getAssociatedTokenAddressSync(tokenmintlp,user.publicKey);
-
-    });
-
-
-
-
-  it("Is initialized!", async () => {
-    const tx = await program.methods.init(fee, seed, null).accountsPartial({
-      signer: user.publicKey,
-      mintX: tokenmintx,
-      mintY: tokenminty,
-      mintLp:tokenmintlp,
-      vaultX: tokenvaultx,
-      vaultY: tokenvaulty,
-      config: config,
-      tokenProgram: spl.TOKEN_PROGRAM_ID,
-      associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    }).signers([user]).rpc();
-    console.log("Your transaction signature", tx);
-    console.log(" amm initialized successfully");
+    userAtaX = ataX.address;
+    userAtaY = ataY.address;
+    userLpAta = ataLp.address;
   });
 
+  it("Deposits liquidity into the pool", async () => {
+    const depositAmount = new anchor.BN(1_000_000);
+    const maxX = new anchor.BN(500_000);
+    const maxY = new anchor.BN(500_000);
 
-  it("deposit tokens",async ()=> {
-    const tx=await program.methods.deposit( new anchor.BN(2000000),
-    new anchor.BN(1000000),
-    new anchor.BN(1000000)).accountsPartial({
-      signer:user.publicKey ,
-      mintX:tokenmintx,
-      mintY:tokenminty,
-      mintLp:tokenmintlp,
-      config,
-      vaultX:tokenvaultx,
-      vaultY:tokenvaulty,
-      userX:usertokenx,
-      userY:usertokeny ,
-      userLp:usermintlp ,
-      tokenProgram:spl.TOKEN_PROGRAM_ID,
-      associatedTokenProgram:spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-      systemProgram:anchor.web3.SystemProgram.programId
-    }).signers([user]).rpc()
-
-    console.log("your transaction signature",tx); 
-
-    console.log(
-      "token_x_vault balance should be 1000000",
-      await provider.connection.getTokenAccountBalance(tokenvaultx)
-    );
-    console.log(
-      "token_y_vault balance should be 1000000",
-      await provider.connection.getTokenAccountBalance(tokenvaulty)
-    );
-    console.log(
-      "user_lp balance should be 2000000",
-      await provider.connection.getTokenAccountBalance(usermintlp)
-    );
-  })
-
-  it("swap tokenx for tokeny",async ()=> {
-     const tx=await program.methods.swap(true,new anchor.BN(2345),new anchor.BN(1)).accountsPartial({
-       signer:user.publicKey ,
-       mintX:tokenmintx,
-       mintY:tokenminty ,
-       vaultX:tokenvaultx ,
-       vaultY:tokenvaulty ,
-       config, 
-       userX:usertokenx ,
-       userY:usertokeny ,
-       tokenProgram:spl.TOKEN_PROGRAM_ID ,
-       associatedTokenProgram:spl.ASSOCIATED_TOKEN_PROGRAM_ID ,
-       systemProgram:anchor.web3.SystemProgram.programId 
-     }).signers([user]).rpc();
-
-
-     console.log("Your transaction signature", tx);
-     console.log(
-       "token_x_vault balance should be ---->",
-       await provider.connection.getTokenAccountBalance(tokenvaultx)
-     );
-     console.log(
-       "token_Y_vault balance should be ---->",
-       await provider.connection.getTokenAccountBalance(tokenvaulty)
-     );
-     console.log(
-       "user_token_x balance should be ----->",
-       await provider.connection.getTokenAccountBalance(usertokenx)
-     );
-  })
-
-    it("withdraw tokens ",async ()=> {
-      const tx=await program.methods.withdraw(
-        new anchor.BN(2000000), 
-        new anchor.BN(1000000), 
-        new anchor.BN(1000000)  
-      )
+    const tx = await program.methods
+      .deposit(depositAmount, maxX, maxY)
       .accountsPartial({
-        user:user.publicKey ,
-        mintX:tokenmintx,
-        mintY:tokenminty,
-        mintLp:tokenmintlp,
-        config,
-        vaultX:tokenvaultx,
-        vaultY:tokenvaulty,
-        userX:usertokenx,
-        userY:usertokeny ,
-        userLp:usermintlp ,
-        tokenProgram:spl.TOKEN_PROGRAM_ID,
-        associatedTokenProgram:spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram:anchor.web3.SystemProgram.programId
+        user: admin.publicKey,
+        userAtaX: userAtaX,
+        userAtaY: userAtaY,
+        userAtaLp: userLpAta,
+        config: configPda,
+        vaultX,
+        vaultY,
+        mintLp:lpMint,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
       })
-      .signers([user])
       .rpc();
 
+    console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+    console.log("✅ Deposited liquidity");
+  });
 
-      console.log("Your transaction signature", tx);
-      console.log(
-        "token_x_vault balance should be ---->",
-        await provider.connection.getTokenAccountBalance(tokenvaultx)
-      );
-      console.log(
-        "token_Y_vault balance should be ---->",
-        await provider.connection.getTokenAccountBalance(tokenvaulty)
-      );
-      console.log(
-        "user_token_x balance should be ----->",
-        await provider.connection.getTokenAccountBalance(usertokenx)
-      );
-    })
-   
+  it("Withdraws liquidity from the pool", async () => {
+    const withdrawAmount = new anchor.BN(500_000);
+    const minX = new anchor.BN(100_000);
+    const minY = new anchor.BN(100_000);
+
+    const tx = await program.methods
+      .withdraw(withdrawAmount, minX, minY)
+      .accountsPartial({
+        user: admin.publicKey,
+        userAtaX: userAtaX,
+        userAtaY: userAtaY,
+        userAtaLp: userLpAta,
+        config: configPda,
+        vaultX,
+        vaultY,
+        mintLp:lpMint,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+    console.log("✅ Withdrawn liquidity");
+  });
+
+  it("Swaps token X for token Y", async () => {
+    const amountIn = new anchor.BN(100_000);
+    const minOut = new anchor.BN(50_000);
+
+    const tx = await program.methods
+      .swap(true, amountIn, minOut)
+      .accountsPartial({
+        signer: admin.publicKey,
+        userAtaX: userAtaX,
+        userAtaY: userAtaY,
+        config: configPda,
+        vaultX: vaultX,
+        vaultY: vaultY,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    console.log(`https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+    console.log("✅ Swapped X for Y");
+  });
 });

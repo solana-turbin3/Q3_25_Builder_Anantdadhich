@@ -10,5 +10,5 @@ pub struct Config {
     pub lp_bump:u8, 
     pub authority:Option<Pubkey>,
     pub locked:bool,
-    pub bump:u8
+    pub config_bump:u8
 }

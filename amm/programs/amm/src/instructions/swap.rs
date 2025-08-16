@@ -35,14 +35,14 @@ pub struct Swap<'info> {
     associated_token::mint=mint_x,
     associated_token::authority=signer
   )]
-  pub user_x:Account<'info,TokenAccount> ,
+  pub user_ata_x:Account<'info,TokenAccount> ,
   #[account(
     init_if_needed,
     payer=signer,
     associated_token::mint=mint_y, 
     associated_token::authority=signer
   )]
-  pub user_y:Account<'info,TokenAccount >, 
+  pub user_ata_y:Account<'info,TokenAccount >, 
 
 
 
@@ -50,7 +50,7 @@ pub struct Swap<'info> {
     has_one=mint_x,
     has_one=mint_y,  
     seeds=[b"config",config.seed.to_le_bytes().as_ref()],
-    bump=config.bump
+    bump=config.config_bump
  )]
    pub config:Account<'info,Config> ,
    pub token_program:Program<'info,Token>,
@@ -96,8 +96,8 @@ impl <'info>  Swap <'info> {
 
   pub fn deposit_tokens(&mut self ,is_x:bool, amount:u64)->Result<()> {
      let (from,to ) = match is_x {
-          true => (self.user_x.to_account_info(),self.vault_x.to_account_info()),
-          false => (self.user_y.to_account_info(),self.vault_y.to_account_info())
+          true => (self.user_ata_x.to_account_info(),self.vault_x.to_account_info()),
+          false => (self.user_ata_y.to_account_info(),self.vault_y.to_account_info())
      };
 
      let cpi_program=self.token_program.to_account_info(); 
@@ -118,8 +118,8 @@ impl <'info>  Swap <'info> {
 
   pub fn withdraw_tokens(&mut self,is_x:bool,amount:u64)->Result<()> {
        let (from,to) =match  is_x {
-           true => (self.user_y.to_account_info(),self.vault_y.to_account_info()) ,
-           false => (self.user_x.to_account_info(),self.vault_y.to_account_info())
+           true => (self.user_ata_y.to_account_info(),self.vault_y.to_account_info()) ,
+           false => (self.user_ata_x.to_account_info(),self.vault_y.to_account_info())
        };
 
        let cpi_program=self.token_program.to_account_info(); 
@@ -133,7 +133,7 @@ impl <'info>  Swap <'info> {
        let seeds= &[
         &b"config"[..],
         &self.config.seed.to_be_bytes() ,
-        &[self.config.bump], 
+        &[self.config.config_bump], 
        ];
 
        let signer_seeds=&[&seeds[..]];
