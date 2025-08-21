@@ -8,14 +8,14 @@ use anchor_lang::prelude::*;
 use instructions::*;
  mod state;
  mod error;
-declare_id!("DgSehEwjsxkk7njabexKFhFQxBkngNyFaeDmRfKnsYsV");
+declare_id!("F2YJSaZaQW5M8ntHAd2ShgD9VzRGgEyVqnkvXmYURBc4");
 
 #[program]
 pub mod amm {
     use super::*;
 
-    pub fn init(ctx: Context<Init>, fee: u16, seed: u64, authority: Option<Pubkey>) -> Result<()> {
-        ctx.accounts.init(seed,fee, authority, ctx.bumps)
+    pub fn init(ctx: Context<Init>, seed:u64,fee:u16, authority: Option<Pubkey>) -> Result<()> {
+        ctx.accounts.init(seed,fee ,authority, ctx.bumps)
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64, max_x: u64, max_y: u64) -> Result<()> {
